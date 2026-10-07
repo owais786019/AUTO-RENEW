@@ -49,8 +49,7 @@ jobs:
             libxt6
 
       # Only downloads the browser if it wasn't recovered from the GitHub cache above
-      - name: Fetch Camoufox Browser
-        if: steps:cache-camoufox.outputs.cache-hit != 'true'
+      - name: Fetch dowload
         run: python3 -m camoufox fetch
 
       - name: Verify Installation Versions
