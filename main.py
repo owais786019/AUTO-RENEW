@@ -1,24 +1,56 @@
-import os
-from camoufox import Camoufox
+name: Run Headless Camoufox
 
-def run_scraper():
-    print("Launching Camoufox in headless mode...")
-    
-    # headless=True is mandatory inside GitHub Actions environment
-    # geoip=True activates the geoip extra package features
-    with Camoufox(headless=True, geoip=True) as browser:
-        page = browser.new_page()
-        
-        print("Navigating to target page...")
-        page.goto("https://wikipedia.org")
-        
-        # Extract and print out data to prove it is functioning
-        title = page.title()
-        print(f"Successfully reached page! Title: {title}")
-        
-        # Optional: Save a screenshot to confirm it rendered perfectly fine headless
-        page.screenshot(path="screenshot.png")
-        print("Screenshot saved successfully as screenshot.png")
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
-if __name__ == "__main__":
-    run_scraper()
+jobs:
+  run-camoufox:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Camoufox Python Package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -U "camoufox[geoip]"
+
+      - name: Cache Camoufox Browser Binaries
+        id: cache-camoufox
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/camoufox
+          key: ${{ runner.os }}-camoufox-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-camoufox-
+
+      - name: Install Missing Ubuntu System GUI Libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-0 \
+            libx11-xcb1 \
+            libasound2 \
+            libdbus-glib-1-2 \
+            libxt6
+
+      - name: Fetch Camoufox Browser
+        if: steps.cache-camoufox.outputs.cache-hit != 'true'
+        run: python3 -m camoufox fetch
+
+      - name: Verify Installation Versions
+        run: python3 -m camoufox version
+
+      - name: Run Script
+        run: python main.py
